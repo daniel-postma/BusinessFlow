@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Business Flow</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <h1 data-i18n="app_title">Business Flow</h1>
+          <p class="subtitle" data-i18n="app_subtitle">
+            Identity leverage triage: outcomes → activities → consistency →
+            future.
+          </p>
+        </div>
+
+        <div class="topbar-actions">
+          <!-- Language selector (hardcoded) -->
+          <label class="mini topbar-mini">
+            <span data-i18n="ui_language">Language</span>
+            <select id="workspaceSelect" aria-label="Language selector">
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="zh">中文</option>
+            </select>
+          </label>
+
+          <!-- Dark mode toggle (kept) -->
+          <button
+            id="themeToggleBtn"
+            class="btn btn-ghost"
+            type="button"
+            title="Toggle dark mode"
+          >
+            Dark mode
+          </button>
+
+          <button
+            id="exportBtn"
+            class="btn btn-ghost"
+            type="button"
+            data-i18n="btn_export"
+            title="Export JSON"
+          >
+            Export
+          </button>
+
+          <label class="btn btn-ghost file-btn" title="Import JSON">
+            <span data-i18n="btn_import">Import</span>
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+
+          <button
+            id="resetBtn"
+            class="btn btn-danger"
+            type="button"
+            data-i18n="btn_reset"
+            title="Clear all data"
+          >
+            Reset
+          </button>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Business Flow navigation">
+        <button
+          class="tab is-active"
+          data-tab="today"
+          type="button"
+          data-i18n="tab_today"
+        >
+          Today
+        </button>
+        <button
+          class="tab"
+          data-tab="outcomes"
+          type="button"
+          data-i18n="tab_outcomes"
+        >
+          Outcomes
+        </button>
+        <button
+          class="tab"
+          data-tab="activities"
+          type="button"
+          data-i18n="tab_activities"
+        >
+          Activities
+        </button>
+        <button
+          class="tab"
+          data-tab="review"
+          type="button"
+          data-i18n="tab_review"
+        >
+          Review
+        </button>
+      </nav>
+
+      <main class="grid">
+        <!-- TODAY -->
+        <section class="card wide" data-panel="today">
+          <div class="panel-head">
+            <div>
+              <h2 data-i18n="today_title">Today’s Log</h2>
+              <p class="subtitle2" data-i18n="today_subtitle">
+                Log progress + done for every activity. Categories = outcomes.
+              </p>
+            </div>
+
+            <div class="panel-controls">
+              <label class="mini">
+                <span data-i18n="label_date">Date</span>
+                <input id="todayDateInput" type="date" />
+              </label>
+
+              <label class="mini">
+                <span data-i18n="label_focus_mode">Focus mode</span>
+                <select id="triageModeSelect">
+                  <option value="balanced" selected data-i18n="mode_balanced">
+                    Balanced (1 per outcome)
+                  </option>
+                  <option value="allin" data-i18n="mode_allin">
+                    All-in (top 3 overall)
+                  </option>
+                </select>
+              </label>
+
+              <button
+                id="todayJumpBtn"
+                class="btn btn-ghost"
+                type="button"
+                data-i18n="btn_today"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+
+          <div id="todayEmpty" class="empty" data-i18n="today_empty">
+            Add some activities first — then you can log progress + done here.
+          </div>
+
+          <div class="today-layout">
+            <!-- ALL ACTIVITIES (PRIMARY) -->
+            <div class="card soft">
+              <h3 class="h3" data-i18n="all_activities_title">
+                All activities (today)
+              </h3>
+              <p class="small muted" data-i18n="all_activities_subtitle">
+                Choose a qualifier (sessions/reps/calls/etc), log quantity, and
+                mark done.
+              </p>
+              <div id="todayAllWrap" class="today-all"></div>
+            </div>
+
+            <!-- FOCUS (SECONDARY) -->
+            <div class="card soft">
+              <h3 class="h3" data-i18n="focus_title">Focus (optional)</h3>
+              <p class="small muted" data-i18n="focus_subtitle">
+                If you only do one thing today…
+              </p>
+
+              <div id="identityLever" class="lever">
+                <div class="lever-title">—</div>
+                <div class="lever-meta">—</div>
+
+                <div class="lever-controls">
+                  <span id="leverProgressPill" class="pill blue"
+                    >Progress: —</span
+                  >
+
+                  <div class="qty">
+                    <button
+                      id="leverMinusBtn"
+                      class="icon-btn"
+                      type="button"
+                      aria-label="Decrease progress"
+                    >
+                      −
+                    </button>
+                    <input
+                      id="leverQtyInput"
+                      type="number"
+                      min="0"
+                      step="1"
+                      inputmode="numeric"
+                      placeholder="0"
+                    />
+                    <button
+                      id="leverPlusBtn"
+                      class="icon-btn"
+                      type="button"
+                      aria-label="Increase progress"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button
+                    id="leverDoneBtn"
+                    class="btn btn-primary"
+                    type="button"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+
+              <div style="margin-top: 12px">
+                <h4 class="h4" data-i18n="top_actions_title">Top Actions</h4>
+                <div id="todayList" class="today-list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- OUTCOMES -->
+        <section class="card wide hidden" data-panel="outcomes">
+          <div class="panel-head">
+            <div>
+              <h2 data-i18n="outcomes_title">Top 3 Outcomes</h2>
+              <p class="subtitle2" data-i18n="outcomes_subtitle">
+                Define outcomes (not tasks). Keep them crisp and measurable.
+              </p>
+            </div>
+            <div class="panel-controls">
+              <button
+                id="addOutcomeBtn"
+                class="btn btn-primary"
+                type="button"
+                data-i18n="btn_add_outcome"
+              >
+                Add Outcome
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="outcomeLimitNote"
+            class="range-note"
+            data-i18n="outcome_limit_note"
+          >
+            You can track up to <b>3</b> outcomes. (You can edit or delete
+            anytime.)
+          </div>
+
+          <div id="outcomesWrap" class="outcomes"></div>
+        </section>
+
+        <!-- ACTIVITIES -->
+        <section class="card wide hidden" data-panel="activities">
+          <div class="panel-head">
+            <div>
+              <h2 data-i18n="activities_title">Activities</h2>
+              <p class="subtitle2" data-i18n="activities_subtitle">
+                Create activities and link them to outcomes with contribution
+                weights.
+              </p>
+            </div>
+          </div>
+
+          <section class="card soft">
+            <h3 class="h3" data-i18n="add_activity_title">Add activity</h3>
+
+            <form id="activityForm" class="form">
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="label_activity_name">Activity name</span>
+                  <input
+                    id="actName"
+                    type="text"
+                    maxlength="80"
+                    data-i18n-placeholder="ph_activity_name"
+                    placeholder="e.g. Study Japanese with neighbor"
+                    required
+                  />
+                </label>
+
+                <label class="field">
+                  <span data-i18n="label_minutes">Minutes</span>
+                  <input
+                    id="actMinutes"
+                    type="number"
+                    min="5"
+                    step="5"
+                    data-i18n-placeholder="ph_minutes"
+                    placeholder="60"
+                    required
+                  />
+                </label>
+              </div>
+
+              <!-- progress config -->
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="label_qualifier"
+                    >Progress qualifier (optional)</span
+                  >
+                  <input
+                    id="actUnit"
+                    type="text"
+                    maxlength="16"
+                    data-i18n-placeholder="ph_qualifier"
+                    placeholder="sessions, reps, calls, episodes…"
+                  />
+                </label>
+
+                <label class="field">
+                  <span data-i18n="label_daily_target"
+                    >Daily target (optional)</span
+                  >
+                  <input
+                    id="actTarget"
+                    type="number"
+                    min="0"
+                    step="1"
+                    data-i18n-placeholder="ph_daily_target"
+                    placeholder="8"
+                  />
+                </label>
+              </div>
+
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="label_step">Step (+/−)</span>
+                  <input
+                    id="actStep"
+                    type="number"
+                    min="1"
+                    step="1"
+                    data-i18n-placeholder="ph_step"
+                    placeholder="1"
+                  />
+                </label>
+
+                <label class="field">
+                  <span data-i18n="label_freq"
+                    >Frequency target (per week)</span
+                  >
+                  <input
+                    id="actFreq"
+                    type="number"
+                    min="0"
+                    step="1"
+                    data-i18n-placeholder="ph_freq"
+                    placeholder="4"
+                  />
+                </label>
+              </div>
+
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="label_notes">Notes (optional)</span>
+                  <input
+                    id="actNotes"
+                    type="text"
+                    maxlength="120"
+                    data-i18n-placeholder="ph_notes"
+                    placeholder="What makes this high leverage?"
+                  />
+                </label>
+
+                <div class="field ghost-field" aria-hidden="true">
+                  <span>&nbsp;</span>
+                  <div class="ghost-box"></div>
+                </div>
+              </div>
+
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="label_confidence">Confidence (0–10)</span>
+                  <input
+                    id="actConfidence"
+                    type="range"
+                    min="0"
+                    max="10"
+                    value="7"
+                  />
+                  <div class="range-meta">
+                    <span data-i18n="range_low">Low</span><b id="confVal">7</b
+                    ><span data-i18n="range_high">High</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span data-i18n="label_compounding">Compounding (0–10)</span>
+                  <input
+                    id="actCompounding"
+                    type="range"
+                    min="0"
+                    max="10"
+                    value="7"
+                  />
+                  <div class="range-meta">
+                    <span data-i18n="range_low">Low</span><b id="compVal">7</b
+                    ><span data-i18n="range_high">High</span>
+                  </div>
+                </label>
+              </div>
+
+              <div class="row">
+                <label class="field">
+                  <span data-i18n="label_friction">Friction (0–10)</span>
+                  <input
+                    id="actFriction"
+                    type="range"
+                    min="0"
+                    max="10"
+                    value="4"
+                  />
+                  <div class="range-meta">
+                    <span data-i18n="range_easy">Easy</span><b id="fricVal">4</b
+                    ><span data-i18n="range_hard">Hard</span>
+                  </div>
+                </label>
+
+                <div class="field ghost-field" aria-hidden="true">
+                  <span>&nbsp;</span>
+                  <div class="ghost-box"></div>
+                </div>
+              </div>
+
+              <div class="card mini-card">
+                <div class="mini-head">
+                  <h4 class="h4" data-i18n="contrib_title">
+                    Contribution to outcomes
+                  </h4>
+                  <p class="small muted" data-i18n="contrib_subtitle">
+                    Set 0 if it doesn’t feed that outcome.
+                  </p>
+                </div>
+                <div id="contribWrap" class="contrib"></div>
+              </div>
+
+              <div class="row actions">
+                <button
+                  class="btn btn-primary"
+                  type="submit"
+                  data-i18n="btn_add_activity"
+                >
+                  Add activity
+                </button>
+                <button
+                  id="clearActivityFormBtn"
+                  class="btn btn-ghost"
+                  type="button"
+                  data-i18n="btn_clear"
+                >
+                  Clear
+                </button>
+              </div>
+            </form>
+
+            <p class="hint" data-i18n="hint_scores">
+              Scores are calculated from contribution × confidence × compounding
+              vs time + friction.
+            </p>
+          </section>
+
+          <section class="card soft">
+            <div class="entries-head">
+              <h3 class="h3" data-i18n="your_activities_title">
+                Your activities
+              </h3>
+              <div class="entries-tools">
+                <input
+                  id="activitySearch"
+                  class="search"
+                  type="search"
+                  data-i18n-placeholder="ph_search"
+                  placeholder="Search activities…"
+                />
+                <select id="activitySort" class="sort">
+                  <option value="scoreDesc" selected data-i18n="sort_highest">
+                    Highest leverage
+                  </option>
+                  <option value="scoreAsc" data-i18n="sort_lowest">
+                    Lowest leverage
+                  </option>
+                  <option value="nameAsc" data-i18n="sort_name_az">
+                    Name A→Z
+                  </option>
+                  <option value="nameDesc" data-i18n="sort_name_za">
+                    Name Z→A
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div
+              id="activitiesEmpty"
+              class="empty"
+              data-i18n="activities_empty"
+            >
+              No activities yet. Add one above.
+            </div>
+
+            <div class="table-wrap">
+              <table class="table" aria-label="Activities table">
+                <thead>
+                  <tr>
+                    <th data-i18n="th_activity">Activity</th>
+                    <th data-i18n="th_category">Category</th>
+                    <th class="right" data-i18n="th_minutes">Minutes</th>
+                    <th class="right" data-i18n="th_leverage">Leverage</th>
+                    <th class="right" data-i18n="th_progress_today">
+                      Progress today
+                    </th>
+                    <th class="right" data-i18n="th_done_today">Done today</th>
+                    <th class="right" data-i18n="th_action">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="activitiesTbody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <!-- REVIEW -->
+        <section class="card wide hidden" data-panel="review">
+          <div class="panel-head">
+            <div>
+              <h2 data-i18n="review_title">Review</h2>
+              <p class="subtitle2" data-i18n="review_subtitle">
+                See consistency and outcome feed for the last 7 days.
+              </p>
+            </div>
+
+            <div class="panel-controls">
+              <button
+                id="reviewJumpBtn"
+                class="btn btn-ghost"
+                type="button"
+                data-i18n="btn_refresh"
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <span class="label" data-i18n="stat_minutes7d"
+                >High-leverage minutes (7d)</span
+              >
+              <span id="reviewMinutes" class="value">—</span>
+            </div>
+            <div class="stat">
+              <span class="label" data-i18n="stat_actions7d"
+                >Actions completed (7d)</span
+              >
+              <span id="reviewActions" class="value">—</span>
+            </div>
+            <div class="stat">
+              <span class="label" data-i18n="stat_best_outcome"
+                >Best outcome fed</span
+              >
+              <span id="reviewBestOutcome" class="value">—</span>
+            </div>
+            <div class="stat">
+              <span class="label" data-i18n="stat_days7d"
+                >Consistency days (7d)</span
+              >
+              <span id="reviewDays" class="value">—</span>
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="card soft">
+              <h3 class="h3" data-i18n="outcome_feed_title">
+                Outcome feed (7d)
+              </h3>
+              <div id="outcomeFeedList" class="feed"></div>
+            </div>
+
+            <div class="card soft">
+              <h3 class="h3" data-i18n="daily_log_title">Daily log (7d)</h3>
+              <div id="dailyLogList" class="feed"></div>
+            </div>
+          </div>
+
+          <div class="range-note" data-i18n="stored_note">
+            Stored locally in your browser (localStorage). Export for backups.
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span class="footer-note" data-i18n="footer_note"
+          >Business Flow • Ocean mode • Stored locally</span
+        >
+      </footer>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
