@@ -3,6 +3,7 @@
 // - Each language is ALSO a workspace (separate outcomes/activities/logs)
 // - Dark mode toggle is preserved (html[data-theme="dark"])
 // - Migrates v2 -> v3 safely, and maps old "general" -> "en"
+// - ✅ FIXED: Import no longer calls load() (which overwrote imported state)
 
 (() => {
   const STORAGE_KEY_V3 = "businessFlow_v3";
@@ -155,7 +156,6 @@
       import_failed: "Import failed: invalid JSON.",
       import_invalid: "Import failed: invalid file.",
 
-      // ✅ FIX: previously hardcoded strings
       lever_meta: "Feeds: {outcome} • Leverage: {leverage} • {minutes} min",
       lever_hint_need_activities:
         "Add activities that feed outcomes to see focus suggestions.",
@@ -300,7 +300,6 @@
       import_failed: "インポート失敗：JSONが不正です。",
       import_invalid: "インポート失敗：ファイルが不正です。",
 
-      // ✅ FIX: previously hardcoded strings
       lever_meta: "成果: {outcome} • レバレッジ: {leverage} • {minutes}分",
       lever_hint_need_activities:
         "成果に寄与する活動を追加すると、フォーカス候補が表示されます。",
@@ -445,7 +444,6 @@
       import_failed: "导入失败：JSON 无效。",
       import_invalid: "导入失败：文件无效。",
 
-      // ✅ FIX: previously hardcoded strings
       lever_meta: "关联成果：{outcome} • 杠杆：{leverage} • {minutes} 分钟",
       lever_hint_need_activities:
         "添加能推动成果的活动后，这里会显示聚焦建议。",
@@ -456,6 +454,7 @@
     },
   };
 
+  // NOTE: state is defined later; safe optional chaining is used.
   function t(key, vars = {}) {
     const lang = state?.settings?.uiLang || "en";
     const base = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
@@ -609,92 +608,7 @@
     return state.workspaces[id];
   }
 
-  function ensureLangWorkspaces() {
-    // If old "general" exists, map to "en" (first run migration convenience)
-    if (state.workspaces.general && !state.workspaces.en) {
-      state.workspaces.en = state.workspaces.general;
-      delete state.workspaces.general;
-    }
-
-    for (const id of LANGS) {
-      if (!state.workspaces[id]) {
-        state.workspaces[id] = { outcomes: [], activities: [], logs: {} };
-      }
-      state.workspaces[id] = normalizeWorkspaceData(state.workspaces[id]);
-    }
-
-    if (!LANGS.includes(state.settings.activeWorkspaceId)) {
-      state.settings.activeWorkspaceId = "en";
-    }
-    if (!LANGS.includes(state.settings.uiLang)) {
-      state.settings.uiLang = state.settings.activeWorkspaceId || "en";
-    }
-  }
-
-  // ===== I18N APPLY =====
-  function applyI18n() {
-    const lang = state.settings.uiLang || "en";
-    document.documentElement.lang = lang;
-
-    // Update doc title too
-    document.title = t("app_title");
-
-    document.querySelectorAll("[data-i18n]").forEach((el) => {
-      const key = el.getAttribute("data-i18n");
-      el.innerHTML = t(key);
-    });
-
-    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
-      const key = el.getAttribute("data-i18n-placeholder");
-      el.setAttribute("placeholder", t(key));
-    });
-
-    document.querySelectorAll("[data-i18n-title]").forEach((el) => {
-      const key = el.getAttribute("data-i18n-title");
-      el.setAttribute("title", t(key));
-    });
-
-    // Ensure theme toggle text respects language
-    updateThemeToggleText();
-
-    // Also keep the select in sync
-    if (workspaceSelect) workspaceSelect.value = state.settings.uiLang || "en";
-  }
-
-  // ===== THEME =====
-  function defaultThemeFromSystem() {
-    try {
-      return window.matchMedia &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    } catch {
-      return "light";
-    }
-  }
-
-  function updateThemeToggleText() {
-    if (!themeToggleBtn) return;
-    const isDark = document.documentElement.dataset.theme === "dark";
-    themeToggleBtn.textContent = isDark
-      ? t("btn_light_mode")
-      : t("btn_dark_mode");
-    themeToggleBtn.title = isDark
-      ? t("title_light_mode")
-      : t("title_dark_mode");
-  }
-
-  function applyTheme(theme) {
-    const tval = theme === "dark" ? "dark" : "light";
-    document.documentElement.dataset.theme = tval;
-    updateThemeToggleText();
-  }
-
-  // ===== STORAGE =====
-  function save() {
-    localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(state));
-  }
-
+  // ===== WORKSPACES =====
   function normalizeWorkspaceData(w) {
     const out = w && typeof w === "object" ? w : {};
     const outcomes = Array.isArray(out.outcomes) ? out.outcomes : [];
@@ -752,6 +666,159 @@
     };
   }
 
+  function ensureLangWorkspaces() {
+    // If old "general" exists, map to "en"
+    if (state.workspaces.general && !state.workspaces.en) {
+      state.workspaces.en = state.workspaces.general;
+      delete state.workspaces.general;
+    }
+
+    for (const id of LANGS) {
+      if (!state.workspaces[id]) {
+        state.workspaces[id] = { outcomes: [], activities: [], logs: {} };
+      }
+      state.workspaces[id] = normalizeWorkspaceData(state.workspaces[id]);
+    }
+
+    if (!LANGS.includes(state.settings.activeWorkspaceId)) {
+      state.settings.activeWorkspaceId = "en";
+    }
+    if (!LANGS.includes(state.settings.uiLang)) {
+      state.settings.uiLang = state.settings.activeWorkspaceId || "en";
+    }
+  }
+
+  // ===== I18N APPLY =====
+  function applyI18n() {
+    const lang = state.settings.uiLang || "en";
+    document.documentElement.lang = lang;
+    document.title = t("app_title");
+
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      const key = el.getAttribute("data-i18n");
+      el.innerHTML = t(key);
+    });
+
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-placeholder");
+      el.setAttribute("placeholder", t(key));
+    });
+
+    document.querySelectorAll("[data-i18n-title]").forEach((el) => {
+      const key = el.getAttribute("data-i18n-title");
+      el.setAttribute("title", t(key));
+    });
+
+    updateThemeToggleText();
+    if (workspaceSelect) workspaceSelect.value = state.settings.uiLang || "en";
+  }
+
+  // ===== THEME =====
+  function defaultThemeFromSystem() {
+    try {
+      return window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    } catch {
+      return "light";
+    }
+  }
+
+  function updateThemeToggleText() {
+    if (!themeToggleBtn) return;
+    const isDark = document.documentElement.dataset.theme === "dark";
+    themeToggleBtn.textContent = isDark
+      ? t("btn_light_mode")
+      : t("btn_dark_mode");
+    themeToggleBtn.title = isDark
+      ? t("title_light_mode")
+      : t("title_dark_mode");
+  }
+
+  function applyTheme(theme) {
+    const tval = theme === "dark" ? "dark" : "light";
+    document.documentElement.dataset.theme = tval;
+    updateThemeToggleText();
+  }
+
+  // ===== STORAGE =====
+  function save() {
+    localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(state));
+  }
+
+  // ✅ Shared normalizer: used by load() and import()
+  function normalizeTopLevelState() {
+    if (!state || typeof state !== "object")
+      state = { workspaces: {}, settings: {} };
+    if (!state.workspaces || typeof state.workspaces !== "object")
+      state.workspaces = {};
+    if (!state.settings || typeof state.settings !== "object")
+      state.settings = {};
+
+    if (!state.settings.triageMode) state.settings.triageMode = "balanced";
+    if (!state.settings.activeWorkspaceId)
+      state.settings.activeWorkspaceId = "en";
+    if (!state.settings.uiLang)
+      state.settings.uiLang = state.settings.activeWorkspaceId || "en";
+    if (!state.settings.theme) state.settings.theme = "";
+
+    ensureLangWorkspaces();
+
+    if (!state.settings.theme) state.settings.theme = defaultThemeFromSystem();
+  }
+
+  // ✅ Import compatibility: accepts wrapper {state}, raw state, or v2-ish shape
+  function coerceImportedState(obj) {
+    if (!obj || typeof obj !== "object") return null;
+
+    // If it's our export wrapper, peel it
+    const maybe = obj.state && typeof obj.state === "object" ? obj.state : obj;
+
+    // v3 shape
+    if (
+      maybe.workspaces &&
+      typeof maybe.workspaces === "object" &&
+      maybe.settings
+    )
+      return maybe;
+
+    // v2-ish shape
+    const hasV2Shape =
+      Array.isArray(maybe.outcomes) ||
+      Array.isArray(maybe.activities) ||
+      (maybe.logs && typeof maybe.logs === "object");
+
+    if (hasV2Shape) {
+      return {
+        workspaces: {
+          en: {
+            outcomes: Array.isArray(maybe.outcomes) ? maybe.outcomes : [],
+            activities: Array.isArray(maybe.activities) ? maybe.activities : [],
+            logs:
+              maybe.logs && typeof maybe.logs === "object" ? maybe.logs : {},
+          },
+          ja: { outcomes: [], activities: [], logs: {} },
+          zh: { outcomes: [], activities: [], logs: {} },
+        },
+        settings: {
+          activeWorkspaceId: "en",
+          uiLang: "en",
+          triageMode:
+            maybe.settings && typeof maybe.settings === "object"
+              ? maybe.settings.triageMode || "balanced"
+              : "balanced",
+          theme:
+            maybe.settings && typeof maybe.settings === "object"
+              ? maybe.settings.theme || ""
+              : "",
+        },
+      };
+    }
+
+    return null;
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_V3);
@@ -791,24 +858,7 @@
       // ignore
     }
 
-    // normalize top-level
-    if (!state || typeof state !== "object")
-      state = { workspaces: {}, settings: {} };
-    if (!state.workspaces || typeof state.workspaces !== "object")
-      state.workspaces = {};
-    if (!state.settings || typeof state.settings !== "object")
-      state.settings = {};
-
-    if (!state.settings.triageMode) state.settings.triageMode = "balanced";
-    if (!state.settings.activeWorkspaceId)
-      state.settings.activeWorkspaceId = "en";
-    if (!state.settings.uiLang)
-      state.settings.uiLang = state.settings.activeWorkspaceId || "en";
-    if (!state.settings.theme) state.settings.theme = "";
-
-    ensureLangWorkspaces();
-
-    if (!state.settings.theme) state.settings.theme = defaultThemeFromSystem();
+    normalizeTopLevelState();
   }
 
   function setLanguage(lang) {
@@ -1642,7 +1692,6 @@
 
       const oName = leverItem.outcome ? leverItem.outcome.title : "—";
 
-      // ✅ FIX: translate "Feeds: ..."
       identityLever.querySelector(".lever-meta").textContent = t("lever_meta", {
         outcome: oName,
         leverage: fmt1(leverItem.score),
@@ -1676,8 +1725,6 @@
     } else {
       currentLeverActivityId = null;
       identityLever.querySelector(".lever-title").textContent = "—";
-
-      // ✅ FIX: translate the empty hint lines
       identityLever.querySelector(".lever-meta").textContent = S.outcomes.length
         ? t("lever_hint_need_activities")
         : t("lever_hint_need_outcomes");
@@ -1883,30 +1930,34 @@
     );
   }
 
+  // ✅ FIXED IMPORT: no load() call (load() reads localStorage and overwrites imported state)
   function importData(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const obj = JSON.parse(String(reader.result || ""));
-        const incoming = obj?.state ?? obj;
+        const incomingState = coerceImportedState(obj);
 
-        if (!incoming || typeof incoming !== "object") {
+        if (!incomingState || typeof incomingState !== "object") {
           alert(t("import_invalid"));
           importInput.value = "";
           return;
         }
 
-        state = incoming;
-        load(); // normalize
+        state = incomingState;
+
+        // normalize without re-reading localStorage
+        normalizeTopLevelState();
+
         save();
 
-        // keep UI consistent
         applyI18n();
         applyTheme(state.settings.theme);
         renderAll();
       } catch {
         alert(t("import_failed"));
       } finally {
+        // allow re-selecting same file later
         importInput.value = "";
       }
     };
@@ -2009,7 +2060,6 @@
     todayDateInput.value = toISODate(new Date());
     triageModeSelect.value = state.settings?.triageMode || "balanced";
 
-    // Sync select + apply language and theme
     workspaceSelect.value = state.settings.uiLang || "en";
     applyI18n();
 
