@@ -4,12 +4,14 @@
 // - Dark mode toggle is preserved (html[data-theme="dark"])
 // - Migrates v2 -> v3 safely, and maps old "general" -> "en"
 // - ✅ FIXED: Import no longer calls load() (which overwrote imported state)
+// - ✅ UPDATED: Supports up to 7 outcomes
 
 (() => {
   const STORAGE_KEY_V3 = "businessFlow_v3";
   const STORAGE_KEY_V2 = "businessFlow_v2";
 
   const LANGS = ["en", "ja", "zh"];
+  const OUTCOME_LIMIT = 7;
 
   const I18N = {
     en: {
@@ -50,12 +52,12 @@
       focus_subtitle: "If you only do one thing today…",
       top_actions_title: "Top Actions",
 
-      outcomes_title: "Top 3 Outcomes",
+      outcomes_title: "Top 7 Outcomes",
       outcomes_subtitle:
         "Define outcomes (not tasks). Keep them crisp and measurable.",
       btn_add_outcome: "Add Outcome",
       outcome_limit_note:
-        "You can track up to 3 outcomes. (You can edit or delete anytime.)",
+        "You can track up to 7 outcomes. (You can edit or delete anytime.)",
 
       activities_title: "Activities",
       activities_subtitle:
@@ -119,11 +121,11 @@
       qualifier_custom: "Custom…",
       prompt_custom_qualifier:
         "Custom qualifier (e.g. 'kanji', 'client convos', 'songs'):",
-      alert_outcome_limit: "You can track up to 3 outcomes.",
+      alert_outcome_limit: "You can track up to 7 outcomes.",
       alert_activity_name: "Please enter an activity name.",
       alert_minutes_min: "Minutes must be 5 or more.",
 
-      outcomes_empty: "No outcomes yet. Add up to 3.",
+      outcomes_empty: "No outcomes yet. Add up to 7.",
       contrib_empty: "Add outcomes first to set contributions.",
       btn_delete: "Delete",
 
@@ -201,10 +203,10 @@
       focus_subtitle: "今日1つだけやるなら…",
       top_actions_title: "おすすめアクション",
 
-      outcomes_title: "上位3つの成果",
+      outcomes_title: "上位7つの成果",
       outcomes_subtitle: "タスクではなく成果を定義。短く測定可能に。",
       btn_add_outcome: "成果を追加",
-      outcome_limit_note: "最大 <b>3</b> つまで追跡できます。（編集・削除OK）",
+      outcome_limit_note: "最大 <b>7</b> つまで追跡できます。（編集・削除OK）",
 
       activities_title: "活動",
       activities_subtitle: "活動を作り、成果への寄与（重み）を紐づけます。",
@@ -265,11 +267,11 @@
       qualifier_off: "単位なし（オフ）",
       qualifier_custom: "カスタム…",
       prompt_custom_qualifier: "カスタム単位（例：漢字、商談、曲など）：",
-      alert_outcome_limit: "成果は最大3つまでです。",
+      alert_outcome_limit: "成果は最大7つまでです。",
       alert_activity_name: "活動名を入力してください。",
       alert_minutes_min: "分は 5 以上にしてください。",
 
-      outcomes_empty: "成果がありません。最大3つまで追加できます。",
+      outcomes_empty: "成果がありません。最大7つまで追加できます。",
       contrib_empty: "寄与を設定するには先に成果を追加してください。",
       btn_delete: "削除",
 
@@ -345,10 +347,10 @@
       focus_subtitle: "如果今天只做一件事…",
       top_actions_title: "重点行动",
 
-      outcomes_title: "前三个成果",
+      outcomes_title: "前七个成果",
       outcomes_subtitle: "定义成果（不是任务）。尽量简洁且可衡量。",
       btn_add_outcome: "添加成果",
-      outcome_limit_note: "最多跟踪 <b>3</b> 个成果。（可随时编辑或删除）",
+      outcome_limit_note: "最多跟踪 <b>7</b> 个成果。（可随时编辑或删除）",
 
       activities_title: "活动",
       activities_subtitle: "创建活动，并用权重连接到成果。",
@@ -409,11 +411,11 @@
       qualifier_off: "无单位（关闭）",
       qualifier_custom: "自定义…",
       prompt_custom_qualifier: "自定义单位（如：汉字、商谈、歌曲）：",
-      alert_outcome_limit: "最多只能跟踪 3 个成果。",
+      alert_outcome_limit: "最多只能跟踪 7 个成果。",
       alert_activity_name: "请输入活动名称。",
       alert_minutes_min: "分钟必须 ≥ 5。",
 
-      outcomes_empty: "还没有成果。最多可添加 3 个。",
+      outcomes_empty: "还没有成果。最多可添加 7 个。",
       contrib_empty: "请先添加成果再设置贡献。",
       btn_delete: "删除",
 
@@ -454,7 +456,6 @@
     },
   };
 
-  // NOTE: state is defined later; safe optional chaining is used.
   function t(key, vars = {}) {
     const lang = state?.settings?.uiLang || "en";
     const base = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
@@ -534,7 +535,7 @@
       activeWorkspaceId: "en",
       uiLang: "en",
       triageMode: "balanced",
-      theme: "", // "light" | "dark" | ""
+      theme: "",
     },
   };
 
@@ -615,7 +616,7 @@
     const activities = Array.isArray(out.activities) ? out.activities : [];
     const logs = out.logs && typeof out.logs === "object" ? out.logs : {};
 
-    const normOutcomes = outcomes.slice(0, 3).map((o, idx) => ({
+    const normOutcomes = outcomes.slice(0, OUTCOME_LIMIT).map((o, idx) => ({
       id: o.id || uid(),
       title: String(o.title || `Outcome ${idx + 1}`).slice(0, 80),
       why: String(o.why || "").slice(0, 140),
@@ -667,7 +668,6 @@
   }
 
   function ensureLangWorkspaces() {
-    // If old "general" exists, map to "en"
     if (state.workspaces.general && !state.workspaces.en) {
       state.workspaces.en = state.workspaces.general;
       delete state.workspaces.general;
@@ -747,7 +747,6 @@
     localStorage.setItem(STORAGE_KEY_V3, JSON.stringify(state));
   }
 
-  // ✅ Shared normalizer: used by load() and import()
   function normalizeTopLevelState() {
     if (!state || typeof state !== "object")
       state = { workspaces: {}, settings: {} };
@@ -768,14 +767,11 @@
     if (!state.settings.theme) state.settings.theme = defaultThemeFromSystem();
   }
 
-  // ✅ Import compatibility: accepts wrapper {state}, raw state, or v2-ish shape
   function coerceImportedState(obj) {
     if (!obj || typeof obj !== "object") return null;
 
-    // If it's our export wrapper, peel it
     const maybe = obj.state && typeof obj.state === "object" ? obj.state : obj;
 
-    // v3 shape
     if (
       maybe.workspaces &&
       typeof maybe.workspaces === "object" &&
@@ -783,7 +779,6 @@
     )
       return maybe;
 
-    // v2-ish shape
     const hasV2Shape =
       Array.isArray(maybe.outcomes) ||
       Array.isArray(maybe.activities) ||
@@ -826,7 +821,6 @@
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") state = parsed;
       } else {
-        // migrate v2
         const old = localStorage.getItem(STORAGE_KEY_V2);
         if (old) {
           const v2 = JSON.parse(old);
@@ -864,7 +858,7 @@
   function setLanguage(lang) {
     const next = LANGS.includes(lang) ? lang : "en";
     state.settings.uiLang = next;
-    state.settings.activeWorkspaceId = next; // language == workspace
+    state.settings.activeWorkspaceId = next;
     save();
     applyI18n();
     renderAll();
@@ -1016,7 +1010,8 @@
   // ===== OUTCOMES UI =====
   function addOutcome() {
     const S = ws();
-    if (S.outcomes.length >= 3) return alert(t("alert_outcome_limit"));
+    if (S.outcomes.length >= OUTCOME_LIMIT)
+      return alert(t("alert_outcome_limit"));
     const idx = S.outcomes.length + 1;
     S.outcomes.push({
       id: uid(),
@@ -1409,7 +1404,6 @@
       );
       tr.appendChild(makeCell(t("th_leverage"), fmt1(score), "right"));
 
-      // Progress today
       const progressCell = document.createElement("div");
       progressCell.className = "progress-cell";
 
@@ -1453,7 +1447,6 @@
 
       tr.appendChild(makeCell(t("th_progress_today"), progressCell, "right"));
 
-      // Done today
       const done = isDoneToday(a.id, dateISO);
       const doneBtn = document.createElement("button");
       doneBtn.className = `btn ${done ? "btn-primary" : "btn-ghost"}`;
@@ -1462,7 +1455,6 @@
       doneBtn.addEventListener("click", () => toggleDone(a.id, dateISO));
       tr.appendChild(makeCell(t("th_done_today"), doneBtn, "right"));
 
-      // Action
       const actions = document.createElement("div");
       actions.className = "inline";
       const del = document.createElement("button");
@@ -1691,7 +1683,6 @@
         leverItem.activity.name;
 
       const oName = leverItem.outcome ? leverItem.outcome.title : "—";
-
       identityLever.querySelector(".lever-meta").textContent = t("lever_meta", {
         outcome: oName,
         leverage: fmt1(leverItem.score),
@@ -1930,7 +1921,6 @@
     );
   }
 
-  // ✅ FIXED IMPORT: no load() call (load() reads localStorage and overwrites imported state)
   function importData(file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -1946,7 +1936,7 @@
 
         state = incomingState;
 
-        // normalize without re-reading localStorage
+        // normalize WITHOUT re-reading localStorage
         normalizeTopLevelState();
 
         save();
@@ -1957,7 +1947,6 @@
       } catch {
         alert(t("import_failed"));
       } finally {
-        // allow re-selecting same file later
         importInput.value = "";
       }
     };
@@ -2039,12 +2028,10 @@
   });
   resetBtn.addEventListener("click", resetAll);
 
-  // Language selector (hardcoded)
   workspaceSelect.addEventListener("change", () => {
     setLanguage(workspaceSelect.value);
   });
 
-  // Theme toggle (kept)
   themeToggleBtn.addEventListener("click", () => {
     const next =
       document.documentElement.dataset.theme === "dark" ? "light" : "dark";
